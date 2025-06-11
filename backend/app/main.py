@@ -12,5 +12,4 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Ini akan memanggil semua route di /api/v1/predict
 app.include_router(predict.router, prefix="/api/v1")

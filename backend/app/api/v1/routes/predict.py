@@ -15,5 +15,5 @@ async def predict(file: UploadFile = File(...)):
 
     return {
         "prediction": label,
-        "recommendation": recommendations
+        "recommendation": recommendation
     }
