@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.v1.routes import predict  # pastikan path ini sesuai struktur
+from app.api.v1.routes import predict
 
 app = FastAPI(title="Deteksi Sampah API", version="1.0.0")
 
