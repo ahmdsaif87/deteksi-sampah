@@ -2,8 +2,8 @@
 import React, { useRef, useState } from "react";
 import Webcam from "react-webcam";
 
-// CameraCapture Component
-export function CameraCapture({ onResult }: { onResult: (data: any) => void }) {
+
+export default function CameraCapture({ onResult }: { onResult: (data: any) => void }) {
     const webcamRef = useRef<Webcam>(null);
     const [loading, setLoading] = useState(false);
     const [isWebcamActive, setIsWebcamActive] = useState(false);
