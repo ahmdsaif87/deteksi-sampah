@@ -1,151 +1,154 @@
-'use client';
+"use client"
 
-import React, { useState } from "react";
+import type React from "react"
+import { useState, useRef } from "react"
+import { CheckCircle, FileImage } from "lucide-react"
 
-export function UploadForm({ onResult }: { onResult: (data: any) => void }) {
-    const [loading, setLoading] = useState(false);
-    const [dragActive, setDragActive] = useState(false);
-    const [selectedFile, setSelectedFile] = useState<File | null>(null);
-    const [result, setResult] = useState<any>(null);
+interface UploadFormProps {
+  onResult: (data: any) => void
+  onLoading: (loading: boolean) => void
+  onError: (error: string | null) => void
+}
 
-    const handleSubmit = async () => {
-        if (!selectedFile) return;
+export function UploadForm({ onResult, onLoading, onError }: UploadFormProps) {
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null)
+  const [isDragOver, setIsDragOver] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-        const formData = new FormData();
-        formData.append("file", selectedFile);
-        setLoading(true);
+  const predictWaste = async (file: File) => {
+    const formData = new FormData()
+    formData.append("file", file)
 
+    try {
+      // Direct call ke FastAPI Anda (sama seperti CameraCapture)
+      const response = await fetch("http://localhost:8000/api/v1/predict", {
+        method: "POST",
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`
         try {
-            const res = await fetch("http://localhost:8000/api/v1/predict", {
-                method: "POST",
-                body: formData,
-            });
-
-            const data = await res.json();
-            onResult(data);
-        } catch (err) {
-            console.error(err);
-            onResult({ error: "Gagal memproses gambar." });
-        } finally {
-            setLoading(false);
+          const errorData = JSON.parse(errorText)
+          errorMessage = errorData.detail || errorData.message || errorMessage
+        } catch {
+          errorMessage = errorText || errorMessage
         }
-    };
+        throw new Error(errorMessage)
+      }
 
-    const handleDrag = (e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (e.type === "dragenter" || e.type === "dragover") {
-            setDragActive(true);
-        } else if (e.type === "dragleave") {
-            setDragActive(false);
-        }
-    };
+      const result = await response.json()
+      return result
+    } catch (error) {
+      if (error instanceof TypeError && error.message.includes("fetch")) {
+        throw new Error("Cannot connect to backend. Make sure the server is running on http://localhost:8000")
+      }
+      throw error
+    }
+  }
 
-    const handleDrop = (e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setDragActive(false);
+  const handleFileUpload = async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      onError("Please select a valid image file")
+      return
+    }
 
-        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-            setSelectedFile(e.dataTransfer.files[0]);
-        }
-    };
+    if (file.size > 10 * 1024 * 1024) {
+      onError("File size must be less than 10MB")
+      return
+    }
 
-    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            setSelectedFile(e.target.files[0]);
-        }
-    };
+    setUploadedFile(file)
+    const url = URL.createObjectURL(file)
+    onLoading(true)
+    onError(null)
 
-    return (
-        <div className="space-y-4">
-            <div
-                className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${dragActive
-                    ? "border-blue-400 bg-blue-50"
-                    : selectedFile
-                        ? "border-green-400 bg-green-50"
-                        : "border-gray-300 bg-gray-50 hover:bg-gray-100"
-                    }`}
-                onDragEnter={handleDrag}
-                onDragLeave={handleDrag}
-                onDragOver={handleDrag}
-                onDrop={handleDrop}
-            >
-                <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                    id="file-upload"
-                />
+    try {
+      const result = await predictWaste(file)
+      onResult({
+        ...result,
+        previewUrl: url,
+        file: file,
+      })
+    } catch (err) {
+      console.error("Prediction error:", err)
+      onError(err instanceof Error ? err.message : "Failed to predict waste type")
+    } finally {
+      onLoading(false)
+    }
+  }
 
-                {selectedFile ? (
-                    <div className="space-y-4">
-                        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-                            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 className="text-lg font-medium text-gray-700 mb-2">File Terpilih</h3>
-                            <p className="text-sm text-gray-600 mb-2">{selectedFile.name}</p>
-                            <p className="text-xs text-gray-500">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={() => setSelectedFile(null)}
-                            className="text-sm text-red-600 hover:text-red-700 underline"
-                        >
-                            Hapus File
-                        </button>
-                    </div>
-                ) : (
-                    <div className="space-y-4">
-                        <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto">
-                            <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 className="text-lg font-medium text-gray-700 mb-2">Upload Gambar Sampah</h3>
-                            <p className="text-sm text-gray-500 mb-4">Drag & drop file atau klik untuk memilih</p>
-                            <label
-                                htmlFor="file-upload"
-                                className="cursor-pointer px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium inline-flex items-center space-x-2"
-                            >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                                <span>Pilih Gambar</span>
-                            </label>
-                        </div>
-                        <p className="text-xs text-gray-400">Format: JPG, PNG, WEBP (Max: 10MB)</p>
-                    </div>
-                )}
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      handleFileUpload(file)
+    }
+  }
+
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    setIsDragOver(false)
+    const file = event.dataTransfer.files[0]
+    if (file) {
+      handleFileUpload(file)
+    }
+  }
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    setIsDragOver(true)
+  }
+
+  const handleDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    setIsDragOver(false)
+  }
+
+  const triggerFileInput = () => {
+    fileInputRef.current?.click()
+  }
+
+  return (
+    <div className="h-full flex flex-col">
+      <div
+        onClick={triggerFileInput}
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        className={`flex-1 border-2 border-dashed rounded-2xl p-8 text-center transition-all cursor-pointer ${
+          isDragOver
+            ? "border-emerald-400 bg-emerald-50"
+            : uploadedFile
+              ? "border-emerald-300 bg-emerald-50"
+              : "border-emerald-300 bg-gradient-to-br from-emerald-50 to-blue-50 hover:from-emerald-100 hover:to-blue-100"
+        }`}
+      >
+        {uploadedFile ? (
+          <div className="space-y-4 h-full flex flex-col justify-center">
+            <div className="w-16 h-16 bg-emerald-500 rounded-2xl flex items-center justify-center mx-auto">
+              <CheckCircle className="w-8 h-8 text-white" />
             </div>
-
-            <button
-                onClick={handleSubmit}
-                disabled={loading || (!selectedFile)}
-                className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium inline-flex items-center justify-center space-x-2"
-            >
-                {loading ? (
-                    <>
-                        <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                        </svg>
-                        <span>Memproses Gambar...</span>
-                    </>
-                ) : (
-                    <>
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                        <span>Deteksi Sampah</span>
-                    </>
-                )}
-            </button>
-        </div>
-    );
+            <div>
+              <p className="font-semibold text-emerald-700">File Berhasil Diupload</p>
+              <p className="text-sm text-gray-600 truncate max-w-[200px] mx-auto">{uploadedFile.name}</p>
+              <p className="text-xs text-gray-500 mt-1">{(uploadedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4 h-full flex flex-col justify-center">
+            <div className="w-16 h-16 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-2xl flex items-center justify-center mx-auto">
+              <FileImage className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <p className="font-semibold text-gray-700">Pilih Gambar Sampah</p>
+              <p className="text-sm text-gray-500 mt-1">Drag & drop atau klik untuk upload</p>
+              <p className="text-xs text-gray-400 mt-2">Mendukung JPG, PNG, WebP (Max 10MB)</p>
+            </div>
+          </div>
+        )}
+        <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+      </div>
+    </div>
+  )
 }
