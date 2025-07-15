@@ -4,7 +4,8 @@ import { useState } from "react"
 import { UploadForm } from "@/components/UploadForm"
 import { CameraCapture } from "@/components/CameraCapture"
 import PredictionResult from "@/components/PredictionResult"
-import { Camera, Upload, Trash2, Zap, Eye, FileImage } from "lucide-react"
+import { Camera, Upload, Trash2, Zap, Eye, FileImage, RotateCcw, AlertCircle } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 
 export default function DetectPage() {
@@ -29,6 +30,14 @@ export default function DetectPage() {
   const handleError = (errorMessage: string | null) => {
     setError(errorMessage)
     setIsLoading(false)
+  }
+
+  const resetDetection = () => {
+    setResult(null)
+    setPreviewUrl(null)
+    setIsLoading(false)
+    setError(null)
+    setActiveTab("upload") // Kembali ke tab upload setelah reset
   }
 
   return (
@@ -57,7 +66,26 @@ export default function DetectPage() {
       </div>
 
       <div className="max-w-7xl mx-auto p-6">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-140px)]">
+        {/* Error Alert */}
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+            <div>
+              <p className="text-red-800 font-medium">Error</p>
+              <p className="text-red-600 text-sm">{error}</p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setError(null)}
+              className="ml-auto text-red-500 hover:text-red-700"
+            >
+              ✕
+            </Button>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[calc(100vh-140px)]">
           {/* Left Panel - Input Methods */}
           <div className="lg:col-span-4 space-y-4">
             {/* Method Selector */}
@@ -85,7 +113,7 @@ export default function DetectPage() {
             </div>
 
             {/* Content Area */}
-            <Card className="bg-white/60 backdrop-blur-sm border-white/20 shadow-xl h-full">
+            <Card className="bg-white/60 backdrop-blur-sm border-white/20 shadow-xl min-h-[400px] max-h-[600px]">
               <CardContent className="p-6 h-full">
                 {activeTab === "upload" ? (
                   <UploadForm onResult={handleResult} onLoading={handleLoading} onError={handleError} />
@@ -98,7 +126,7 @@ export default function DetectPage() {
 
           {/* Center Panel - Image Preview */}
           <div className="lg:col-span-4">
-            <Card className="bg-white/60 backdrop-blur-sm border-white/20 shadow-xl h-full">
+            <Card className="bg-white/60 backdrop-blur-sm border-white/20 shadow-xl min-h-[480px] max-h-[800px]">
               <CardContent className="p-6 h-full flex flex-col">
                 <div className="flex items-center gap-2 mb-4">
                   <Eye className="w-5 h-5 text-gray-600" />
@@ -140,7 +168,7 @@ export default function DetectPage() {
 
           {/* Right Panel - Results */}
           <div className="lg:col-span-4">
-            <Card className="bg-white/60 backdrop-blur-sm border-white/20 shadow-xl h-full">
+            <Card className="bg-white/60 backdrop-blur-sm border-white/20 shadow-xl min-h-[480px] max-h-full">
               <CardContent className="p-6 h-full flex flex-col">
                 <div className="flex items-center gap-2 mb-6">
                   <div className="w-6 h-6 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-lg flex items-center justify-center">
@@ -149,7 +177,7 @@ export default function DetectPage() {
                   <h3 className="font-semibold text-gray-700">Hasil Deteksi AI</h3>
                 </div>
 
-                <div className="flex-1">
+                <div className="flex-1 flex flex-col justify-between">
                   {result ? (
                     <PredictionResult result={result} />
                   ) : isLoading ? (
@@ -170,6 +198,19 @@ export default function DetectPage() {
                       </div>
                       <p className="text-gray-500 font-medium">Menunggu Input</p>
                       <p className="text-sm text-gray-400 mt-1">Upload gambar atau ambil foto untuk memulai deteksi</p>
+                    </div>
+                  )}
+                  {/* Reset Button - Moved inside this panel */}
+                  {(result || previewUrl || error) && (
+                    <div className="mt-6 pt-4 border-t border-gray-100">
+                      <Button
+                        onClick={resetDetection}
+                        variant="outline"
+                        className="w-full border-red-200 text-red-600 hover:bg-red-50 rounded-xl bg-transparent"
+                      >
+                        <RotateCcw className="w-4 h-4 mr-2" />
+                        Reset Deteksi
+                      </Button>
                     </div>
                   )}
                 </div>
